@@ -1,0 +1,6 @@
+Instruções de Uso:
+- Organize seus vídeos na pasta 'Input';
+- O script converterá e comprimirá os vídeos para 720p na pasta 'Output';
+- Altere as configurações em Config.txt;
+- O arquivo pode ser convertido varias vezes até chegar ao tamanho desejado;
+- Certifique-se de que os arquivos de vídeo sejam no formato .mp4.

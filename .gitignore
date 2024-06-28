@@ -1,0 +1,10 @@
+# Ambiente virtual
+myenv
+
+# Build
+/build
+/dist
+
+# Arquivos
+/Input/*
+/Output/*
