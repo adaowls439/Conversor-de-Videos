@@ -8,7 +8,9 @@ def read_config(config_file):
     default_config = {
         'MB_ALVO': 7.925,
         'ULTIMOS_SEGUNDOS': 30,
-        'MAX_TENTATIVAS': 10
+        'MAX_TENTATIVAS': 10,
+        'X': 1920,
+        'Y': 1080
     }
 
     # Verifica se o arquivo de configuração existe
@@ -28,7 +30,7 @@ def read_config(config_file):
 
     return config
 
-def compress_and_trim_video(input_file, output_file, target_size_mb, target_last, max_attempts, tolerance=0.10):
+def compress_and_trim_video(input_file, output_file, target_size_mb, target_last, max_attempts, scale_X, scale_Y, tolerance=0.10):
     target_size_bytes = target_size_mb * 1024 * 1024
     min_size_bytes = (target_size_mb - tolerance) * 1024 * 1024
     max_size_bytes = (target_size_mb + tolerance) * 1024 * 1024
@@ -57,7 +59,7 @@ def compress_and_trim_video(input_file, output_file, target_size_mb, target_last
                 'c:a': 'aac',
                 'b:a': '128k',
                 'r': 25,
-                'vf': 'scale=1280:720,unsharp=5:5:1.0:5:5:0.0',
+                'vf': 'scale='f'{scale_X}:'f'{scale_Y},unsharp=5:5:1.0:5:5:0.0',
                 'profile:v': 'high',
                 'level:v': '4.0',
                 'pix_fmt': 'yuv420p'
@@ -86,6 +88,8 @@ def process_videos_in_folder(input_folder, output_folder, config_file):
     target_size_mb = config.get('MB_ALVO', 7.925)
     target_last = config.get('ULTIMOS_SEGUNDOS', 30)
     max_attempts = config.get('MAX_TENTATIVAS', 10)
+    scale_X = config.get('X', 1920)
+    scale_Y = config.get('Y', 1080)
 
     # Verifica se a pasta de entrada existe, se não, cria-a
     if not os.path.exists(input_folder):
@@ -96,7 +100,7 @@ def process_videos_in_folder(input_folder, output_folder, config_file):
         with open(('Instrucoes.txt'), 'w') as f:
             f.write("Instruções de Uso:\n")
             f.write("- Organize seus vídeos na pasta 'Input';\n")
-            f.write("- O script converterá e comprimirá os vídeos para 720p na pasta 'Output';\n")
+            f.write("- O script converterá e comprimirá os vídeos na pasta 'Output';\n")
             f.write("- Altere as configurações em Config.txt;\n")
             f.write("- O arquivo pode ser convertido varias vezes até chegar ao tamanho desejado;\n")
             f.write("- Certifique-se de que os arquivos de vídeo sejam no formato .mp4.\n")
@@ -115,7 +119,7 @@ def process_videos_in_folder(input_folder, output_folder, config_file):
                 output_file = os.path.join(output_folder, f"{os.path.splitext(file)[0]}_Convertido.mp4")
                 
                 # Chama a função para converter e comprimir o vídeo
-                compress_and_trim_video(input_file, output_file, target_size_mb, target_last, max_attempts)
+                compress_and_trim_video(input_file, output_file, target_size_mb, target_last, max_attempts, scale_X, scale_Y)
 
 input_folder = './Input'
 output_folder = './Output'
