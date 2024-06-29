@@ -47,6 +47,12 @@ def compress_and_trim_video(input_file, output_file, target_size_mb, target_last
     probe = ffmpeg.probe(input_file)
     duration = float(probe['format']['duration'])
 
+    # Verifica se a duração do video é maior que a desejada
+    if target_last > duration:
+        create_log_file(log_file, f"ULTIMOS_SEGUNDOS ({target_last}) é maior que a duração do vídeo ({duration:.2f}). Cancelando conversão.")
+        print(f"ULTIMOS_SEGUNDOS ({target_last}) é maior que a duração do vídeo ({duration:.2f}). Cancelando conversão.")
+        return
+
     # Definane o ponto de início para os últimos segundos do vídeo
     start_time = duration - target_last
 

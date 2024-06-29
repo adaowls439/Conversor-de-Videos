@@ -14,6 +14,7 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
@@ -22,7 +23,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='conversor',
+    name='Conversor de Videos',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -35,4 +36,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='favicon.ico'
 )
