@@ -10,8 +10,8 @@ def read_config(config_file):
         'MB_ALVO': 7.925,
         'ULTIMOS_SEGUNDOS': 30,
         'MAX_TENTATIVAS': 10,
-        'X': 1920,
-        'Y': 1080,
+        'X': 1280,
+        'Y': 720,
         'FPS': 25
     }
 
@@ -38,11 +38,10 @@ def create_log_file(log_file, message):
     with open(log_file, 'a') as f:  
         f.write(f"[{timestamp}] {message}\n")
 
-def compress_and_trim_video(input_file, output_file, target_size_mb, target_last, max_attempts, scale_X, scale_Y, fps, tolerance=0.10):
+def compress_and_trim_video(input_file, output_file, target_size_mb, target_last, max_attempts, scale_X, scale_Y, fps, tolerance=0.99):
     target_size_bytes = target_size_mb * 1024 * 1024
-    min_size_bytes = (target_size_mb - tolerance) * 1024 * 1024
-    max_size_bytes = (target_size_mb + tolerance) * 1024 * 1024
-    create_log_file(log_file,f"target_size_bytes: {target_size_bytes} | min_size_bytes: {min_size_bytes} | max_size_bytes: {max_size_bytes}")
+    min_size_bytes = (target_size_mb * tolerance) * 1024 * 1024
+    create_log_file(log_file,f"target_size_bytes: {target_size_bytes} | min_size_bytes: {min_size_bytes}")
 
     # Obtem informações sobre o vídeo
     probe = ffmpeg.probe(input_file)
@@ -81,16 +80,18 @@ def compress_and_trim_video(input_file, output_file, target_size_mb, target_last
 
         # Verifica o tamanho do arquivo de saída
         output_size_bytes = get_video_size(output_file)
-        
-        if min_size_bytes < output_size_bytes < max_size_bytes:
+        diff_percent = ((output_size_bytes - target_size_bytes) / target_size_bytes)
+        diff = diff_percent*100
+        if min_size_bytes <= output_size_bytes <= target_size_bytes or abs(diff) < 0.1:
+            create_log_file(log_file, f"diff_percent {diff_percent*100:.2f}%")
             create_log_file(log_file, f"Sucesso! output_size_bytes {output_size_bytes}")
             break
-        elif output_size_bytes > max_size_bytes:
-            bit_rate *= 0.9  # Reduz a taxa de bits em 10%
-            create_log_file(log_file, f"output_size_bytes {output_size_bytes} > max_size_bytes {max_size_bytes} = bit_rate - 10%")
+        elif output_size_bytes > target_size_bytes:
+            bit_rate *= 1 - (diff_percent* 1.1)  # Reduz a taxa de bits
+            create_log_file(log_file, f"output_size_bytes {output_size_bytes} > target_size_bytes {target_size_bytes} = bit_rate - {diff:.2f}%")
         else:
-            bit_rate *= 1.1  # Aumenta a taxa de bits em 10%
-            create_log_file(log_file, f"output_size_bytes {output_size_bytes} < min_size_bytes {max_size_bytes} = bit_rate + 10%")
+            bit_rate *= 1 + (diff_percent* 1.1)  # Aumenta a taxa de bits
+            create_log_file(log_file, f"output_size_bytes {output_size_bytes} < min_size_bytes {min_size_bytes} = bit_rate + {diff:.2f}%")
 
         attempts += 1
 
