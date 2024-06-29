@@ -1,5 +1,6 @@
 import os
 import ffmpeg
+from datetime import datetime
 
 def get_video_size(file_path):
     return os.path.getsize(file_path)
@@ -31,10 +32,17 @@ def read_config(config_file):
 
     return config
 
+def create_log_file(log_file, message):
+    now = datetime.now()
+    timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+    with open(log_file, 'a') as f:  
+        f.write(f"[{timestamp}] {message}\n")
+
 def compress_and_trim_video(input_file, output_file, target_size_mb, target_last, max_attempts, scale_X, scale_Y, fps, tolerance=0.10):
     target_size_bytes = target_size_mb * 1024 * 1024
     min_size_bytes = (target_size_mb - tolerance) * 1024 * 1024
     max_size_bytes = (target_size_mb + tolerance) * 1024 * 1024
+    create_log_file(log_file,f"target_size_bytes: {target_size_bytes} | min_size_bytes: {min_size_bytes} | max_size_bytes: {max_size_bytes}")
 
     # Obtem informações sobre o vídeo
     probe = ffmpeg.probe(input_file)
@@ -49,7 +57,10 @@ def compress_and_trim_video(input_file, output_file, target_size_mb, target_last
     # Configurações para o loop
     attempts = 0
 
+    # Registrar início da conversão no log
+    create_log_file(log_file, f"Iniciando conversão de {input_file}")
     while attempts < max_attempts:
+        create_log_file(log_file, f"Tentativa {attempts + 1}")
         # Converte o vídeo
         (
             ffmpeg
@@ -70,18 +81,22 @@ def compress_and_trim_video(input_file, output_file, target_size_mb, target_last
 
         # Verifica o tamanho do arquivo de saída
         output_size_bytes = get_video_size(output_file)
-
-        if min_size_bytes <= output_size_bytes <= max_size_bytes:
+        
+        if min_size_bytes < output_size_bytes < max_size_bytes:
+            create_log_file(log_file, f"Sucesso! output_size_bytes {output_size_bytes}")
             break
         elif output_size_bytes > max_size_bytes:
             bit_rate *= 0.9  # Reduz a taxa de bits em 10%
+            create_log_file(log_file, f"output_size_bytes {output_size_bytes} > max_size_bytes {max_size_bytes} = bit_rate - 10%")
         else:
             bit_rate *= 1.1  # Aumenta a taxa de bits em 10%
+            create_log_file(log_file, f"output_size_bytes {output_size_bytes} < min_size_bytes {max_size_bytes} = bit_rate + 10%")
 
         attempts += 1
 
     if attempts == max_attempts:
         print(f"Limite de tentativas ({max_attempts}) atingido. Não foi possível alcançar o tamanho desejado.")
+        create_log_file(log_file, f"Limite de tentativas ({max_attempts}) atingido. Não foi possível alcançar o tamanho desejado.")
 
 def process_videos_in_folder(input_folder, output_folder, config_file):
     # Lê as configurações do arquivo
@@ -92,10 +107,12 @@ def process_videos_in_folder(input_folder, output_folder, config_file):
     scale_X = config.get('X', 1920)
     scale_Y = config.get('Y', 1080)
     fps = config.get('FPS', 25)
+    create_log_file(log_file,f"Configuração carregada: {config}")
 
     # Verifica se a pasta de entrada existe, se não, cria-a
     if not os.path.exists(input_folder):
-        print(f"A pasta de entrada '{input_folder}' não existe. Criando pasta...")
+        print(f"A pasta de entrada '{input_folder}' não existe. Criando pastas...")
+        create_log_file(log_file, f"A pasta de entrada '{input_folder}' não existe. Criando pastas...")
         os.makedirs(input_folder)
 
         # Cria o arquivo de instruções
@@ -126,5 +143,7 @@ def process_videos_in_folder(input_folder, output_folder, config_file):
 input_folder = './Input'
 output_folder = './Output'
 config_file = 'Config.txt'
+log_file = os.path.join('log.txt')
 
+create_log_file(log_file, "Iniciando conversor...")
 process_videos_in_folder(input_folder, output_folder, config_file)
