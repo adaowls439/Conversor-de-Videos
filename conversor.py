@@ -10,7 +10,8 @@ def read_config(config_file):
         'ULTIMOS_SEGUNDOS': 30,
         'MAX_TENTATIVAS': 10,
         'X': 1920,
-        'Y': 1080
+        'Y': 1080,
+        'FPS': 25
     }
 
     # Verifica se o arquivo de configuração existe
@@ -30,7 +31,7 @@ def read_config(config_file):
 
     return config
 
-def compress_and_trim_video(input_file, output_file, target_size_mb, target_last, max_attempts, scale_X, scale_Y, tolerance=0.10):
+def compress_and_trim_video(input_file, output_file, target_size_mb, target_last, max_attempts, scale_X, scale_Y, fps, tolerance=0.10):
     target_size_bytes = target_size_mb * 1024 * 1024
     min_size_bytes = (target_size_mb - tolerance) * 1024 * 1024
     max_size_bytes = (target_size_mb + tolerance) * 1024 * 1024
@@ -58,7 +59,7 @@ def compress_and_trim_video(input_file, output_file, target_size_mb, target_last
                 'b:v': f'{bit_rate:.0f}',
                 'c:a': 'aac',
                 'b:a': '128k',
-                'r': 25,
+                'r': f'{fps}',
                 'vf': 'scale='f'{scale_X}:'f'{scale_Y},unsharp=5:5:1.0:5:5:0.0',
                 'profile:v': 'high',
                 'level:v': '4.0',
@@ -73,9 +74,9 @@ def compress_and_trim_video(input_file, output_file, target_size_mb, target_last
         if min_size_bytes <= output_size_bytes <= max_size_bytes:
             break
         elif output_size_bytes > max_size_bytes:
-            bit_rate *= 0.95  # Reduz a taxa de bits em 10%
+            bit_rate *= 0.9  # Reduz a taxa de bits em 10%
         else:
-            bit_rate *= 1.05  # Aumenta a taxa de bits em 10%
+            bit_rate *= 1.1  # Aumenta a taxa de bits em 10%
 
         attempts += 1
 
@@ -90,6 +91,7 @@ def process_videos_in_folder(input_folder, output_folder, config_file):
     max_attempts = config.get('MAX_TENTATIVAS', 10)
     scale_X = config.get('X', 1920)
     scale_Y = config.get('Y', 1080)
+    fps = config.get('FPS', 25)
 
     # Verifica se a pasta de entrada existe, se não, cria-a
     if not os.path.exists(input_folder):
@@ -119,7 +121,7 @@ def process_videos_in_folder(input_folder, output_folder, config_file):
                 output_file = os.path.join(output_folder, f"{os.path.splitext(file)[0]}_Convertido.mp4")
                 
                 # Chama a função para converter e comprimir o vídeo
-                compress_and_trim_video(input_file, output_file, target_size_mb, target_last, max_attempts, scale_X, scale_Y)
+                compress_and_trim_video(input_file, output_file, target_size_mb, target_last, max_attempts, scale_X, scale_Y, fps)
 
 input_folder = './Input'
 output_folder = './Output'
