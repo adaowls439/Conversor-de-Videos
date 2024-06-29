@@ -90,7 +90,7 @@ def compress_and_trim_video(input_file, output_file, target_size_mb, target_last
             bit_rate *= 1 - (diff_percent* 1.1)  # Reduz a taxa de bits
             create_log_file(log_file, f"output_size_bytes {output_size_bytes} > target_size_bytes {target_size_bytes} = bit_rate - {diff:.2f}%")
         else:
-            bit_rate *= 1 + (diff_percent* 1.1)  # Aumenta a taxa de bits
+            bit_rate *= 1 + (abs(diff_percent)* 1.1)  # Aumenta a taxa de bits
             create_log_file(log_file, f"output_size_bytes {output_size_bytes} < min_size_bytes {min_size_bytes} = bit_rate + {diff:.2f}%")
 
         attempts += 1
