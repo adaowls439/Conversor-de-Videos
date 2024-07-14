@@ -3,6 +3,7 @@ import ffmpeg
 from src.config import read_config
 from src.log import create_log_file
 from src.utils import get_video_size
+from src.instrucoes import create_instructions_file
 
 def compress_and_trim_video(input_file, output_file, target_size_mb, target_last, max_attempts, scale_X, scale_Y, fps, log_file, tolerance=0.99):
     target_size_bytes = target_size_mb * 1024 * 1024
@@ -89,13 +90,7 @@ def process_videos_in_folder(input_folder, output_folder, config_file, log_file)
         os.makedirs(input_folder)
 
         # Cria o arquivo de instruções
-        with open(os.path.join(input_folder, 'Instrucoes.txt'), 'w') as f:
-            f.write("Instruções de Uso:\n")
-            f.write("- Organize seus vídeos na pasta 'Input';\n")
-            f.write("- O script converterá e comprimirá os vídeos para a pasta 'Output';\n")
-            f.write("- Altere as configurações em Config.txt;\n")
-            f.write("- O arquivo pode ser convertido varias vezes até chegar ao tamanho desejado;\n")
-            f.write("- Certifique-se de que os arquivos de vídeo sejam no formato .mp4.\n")
+        create_instructions_file()
 
     # Verifica se a pasta de saída existe, se não, cria-a
     if not os.path.exists(output_folder):
