@@ -5,7 +5,7 @@ from src.log import create_log_file
 from src.utils import get_video_size
 from src.instrucoes import create_instructions_file
 
-def compress_and_trim_video(input_file, output_file, target_size_mb, target_last, max_attempts, scale_X, scale_Y, fps, log_file, tolerance=0.99):
+def compress_and_trim_video(input_file, output_file, target_size_mb, cut_start, cut_end, max_attempts, scale_X, scale_Y, fps, log_file, tolerance=0.99):
     target_size_bytes = target_size_mb * 1024 * 1024
     min_size_bytes = (target_size_mb * tolerance) * 1024 * 1024
     create_log_file(log_file, f"target_size_bytes: {target_size_bytes} | min_size_bytes: {min_size_bytes}")
@@ -14,17 +14,19 @@ def compress_and_trim_video(input_file, output_file, target_size_mb, target_last
     probe = ffmpeg.probe(input_file)
     duration = float(probe['format']['duration'])
 
-    # Verifica se a duração do video é maior que a desejada
-    if target_last > duration:
-        create_log_file(log_file, f"ULTIMOS_SEGUNDOS ({target_last}) é maior que a duração do vídeo ({duration:.2f}). Cancelando conversão.")
-        print(f"ULTIMOS_SEGUNDOS ({target_last}) é maior que a duração do vídeo ({duration:.2f}). Cancelando conversão.")
+    # Calcula o ponto de início e duração do vídeo após o corte
+    cut_duration = duration - cut_start - cut_end
+    start_time = cut_start
+    end_time = cut_start + cut_duration
+
+    # Verifica se a duração do vídeo após o corte é suficiente
+    if cut_duration <= 5:
+        create_log_file(log_file, f"O vídeo após o corte tem duração não válida ({cut_duration:.2f} segundos). Cancelando conversão.")
+        print(f"O vídeo após o corte tem duração não válida ({cut_duration:.2f} segundos). Cancelando conversão.")
         return
 
-    # Define o ponto de início para os últimos segundos do vídeo
-    start_time = duration - target_last
-
     # Define a taxa de bits para atingir o tamanho alvo
-    bit_rate = target_size_bytes * 8 / target_last
+    bit_rate = target_size_bytes * 8 / cut_duration
 
     # Configurações para o loop
     attempts = 0
@@ -36,7 +38,7 @@ def compress_and_trim_video(input_file, output_file, target_size_mb, target_last
         # Converte o vídeo
         (
             ffmpeg
-            .input(input_file, ss=start_time)
+            .input(input_file, ss=start_time, to=end_time)
             .output(output_file, **{
                 'c:v': 'libx264',
                 'b:v': f'{bit_rate:.0f}',
@@ -76,7 +78,8 @@ def process_videos_in_folder(input_folder, output_folder, config_file, log_file)
     # Lê as configurações do arquivo
     config = read_config(config_file)
     target_size_mb = config.get('MB_ALVO', 7.925)
-    target_last = config.get('ULTIMOS_SEGUNDOS', 30)
+    cut_start = config.get('CORTAR_INICO', 0)
+    cut_end = config.get('CORTAR_FIM', 0)
     max_attempts = config.get('MAX_TENTATIVAS', 10)
     scale_X = config.get('X', 1280)
     scale_Y = config.get('Y', 720)
@@ -106,7 +109,7 @@ def process_videos_in_folder(input_folder, output_folder, config_file, log_file)
                 output_file = os.path.join(output_folder, f"{os.path.splitext(file)[0]}_Convertido.mp4")
                 
                 # Chama a função para converter e comprimir o vídeo
-                compress_and_trim_video(input_file, output_file, target_size_mb, target_last, max_attempts, scale_X, scale_Y, fps, log_file)
+                compress_and_trim_video(input_file, output_file, target_size_mb, cut_start, cut_end,max_attempts, scale_X, scale_Y, fps, log_file)
 
 if __name__ == '__main__':
     input_folder = './Input'

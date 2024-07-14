@@ -4,6 +4,8 @@ def read_config(config_file):
     default_config = {
         'MB_ALVO': 7.925,
         'ULTIMOS_SEGUNDOS': 30,
+        'CORTAR_INICO': 0,
+        'CORTAR_FIM': 0,
         'MAX_TENTATIVAS': 10,
         'X': 1280,
         'Y': 720,
