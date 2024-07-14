@@ -2,14 +2,13 @@ import os
 
 def read_config(config_file):
     default_config = {
-        'MB_ALVO': 7.925,
-        'ULTIMOS_SEGUNDOS': 30,
+        'MB_ALVO': 8,
         'CORTAR_INICIO': 0,
         'CORTAR_FIM': 0,
         'MAX_TENTATIVAS': 10,
         'X': 1280,
         'Y': 720,
-        'FPS': 25
+        'FPS': 24
     }
 
     # Verifica se o arquivo de configuração existe
