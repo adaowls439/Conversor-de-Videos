@@ -9,4 +9,5 @@ myenv
 /Input/*
 /Output/*
 tests.py
-log.txt
+/logs/*
+/src/__pycache__

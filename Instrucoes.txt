@@ -1,6 +1,6 @@
-Instruï¿½ï¿½es de Uso:
-- Organize seus vï¿½deos na pasta 'Input';
-- O script converterï¿½ e comprimirï¿½ os vï¿½deos para a pasta 'Output';
-- Altere as configuraï¿½ï¿½es em Config.txt;
-- O arquivo pode ser convertido varias vezes atï¿½ chegar ao tamanho desejado;
-- Certifique-se de que os arquivos de vï¿½deo sejam no formato .mp4.
+Instruções de Uso:
+- Organize seus vídeos na pasta 'Input';
+- O script converterá e comprimirá os vídeos para a pasta 'Output';
+- Altere as configurações em Config.txt;
+- O arquivo pode ser convertido varias vezes até chegar ao tamanho desejado;
+- Certifique-se de que os arquivos de vídeo sejam no formato .mp4.

@@ -1,135 +1,76 @@
 import os
 import ffmpeg
-from datetime import datetime
+from src.config import read_config
+from src.log import create_log_file
+from src.utils import get_video_size
+from src.instrucoes import create_instructions_file
+from src.comprime_e_corta import compress_and_trim_video, cut_video
 
-def get_video_size(file_path):
-    return os.path.getsize(file_path)
-
-def read_config(config_file):
-    default_config = {
-        'MB_ALVO': 7.925,
-        'ULTIMOS_SEGUNDOS': 30,
-        'MAX_TENTATIVAS': 10,
-        'X': 1280,
-        'Y': 720,
-        'FPS': 25
-    }
-
-    # Verifica se o arquivo de configuração existe
-    if not os.path.exists(config_file):
-        # Cria o arquivo de configuração com os valores padrão
-        with open(config_file, 'w') as f:
-            for key, value in default_config.items():
-                f.write(f"{key} = {value}\n")
-
-    # Lê as configurações do arquivo
-    config = {}
-    with open(config_file, 'r') as f:
-        for line in f:
-            if '=' in line:
-                key, value = line.split('=')
-                config[key.strip()] = float(value.strip())
-
-    return config
-
-def create_log_file(log_file, message):
-    now = datetime.now()
-    timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
-    with open(log_file, 'a') as f:  
-        f.write(f"[{timestamp}] {message}\n")
-
-def compress_and_trim_video(input_file, output_file, target_size_mb, target_last, max_attempts, scale_X, scale_Y, fps, tolerance=0.99):
-    target_size_bytes = target_size_mb * 1024 * 1024
-    min_size_bytes = (target_size_mb * tolerance) * 1024 * 1024
-    create_log_file(log_file,f"target_size_bytes: {target_size_bytes} | min_size_bytes: {min_size_bytes}")
+def preprocess_video_action(input_file, output_file, target_size_mb, cut_start, cut_end, max_attempts, scale_X, scale_Y, fps, tolerance=0.99):
+    # Obtem informações sobre o vídeo original
+    original_size_bytes = os.path.getsize(input_file)
+    original_size_mb = original_size_bytes / (1024 * 1024)
 
     # Obtem informações sobre o vídeo
     probe = ffmpeg.probe(input_file)
     duration = float(probe['format']['duration'])
 
-    # Verifica se a duração do video é maior que a desejada
-    if target_last > duration:
-        create_log_file(log_file, f"ULTIMOS_SEGUNDOS ({target_last}) é maior que a duração do vídeo ({duration:.2f}). Cancelando conversão.")
-        print(f"ULTIMOS_SEGUNDOS ({target_last}) é maior que a duração do vídeo ({duration:.2f}). Cancelando conversão.")
+    # Verifica o FPS original do vídeo
+    original_fps = eval(probe['streams'][0]['r_frame_rate'])  # 'r_frame_rate' is in the format 'numerator/denominator'
+
+    # Usa o FPS original se o FPS desejado for maior que o original
+    if fps > original_fps:
+        create_log_file(f"O FPS desejado ({fps}) é maior que o FPS original ({original_fps}). Usando FPS original.")
+        fps = original_fps
+
+    # Calcula o ponto de início e duração do vídeo após o corte
+    cut_duration = duration - cut_start - cut_end
+
+    start_time = cut_start
+    end_time = cut_start + cut_duration
+
+    # Verifica se o tamanho alvo é menor ou igual ao tamanho do arquivo original
+    if target_size_mb > 0 and target_size_mb <= original_size_mb:
+        target_size_bytes = target_size_mb * 1024 * 1024
+        min_size_bytes = (target_size_mb * tolerance) * 1024 * 1024
+        create_log_file(f"target_size_bytes: {target_size_bytes} | min_size_bytes: {min_size_bytes}")
+
+        # Verifica se a duração do vídeo após o corte é suficiente
+        if cut_duration <= 3:
+            create_log_file(f"O vídeo após o corte tem duração não válida ({cut_duration:.2f} segundos). Cancelando conversão.")
+            print(f"O vídeo após o corte tem duração não válida ({cut_duration:.2f} segundos). Cancelando conversão.")
+            return
+
+        # Comprime e corta o video
+        compress_and_trim_video(target_size_bytes, cut_duration, input_file, max_attempts, start_time, end_time, output_file, fps, scale_X, scale_Y, min_size_bytes)
+
+    else:
+        create_log_file(f"Erro: O tamanho alvo ({target_size_mb} MB) é maior que o tamanho do arquivo original ({original_size_mb:.2f} MB). Não é necessário converter.")
+        print(f"Erro: O tamanho alvo ({target_size_mb} MB) é maior que o tamanho do arquivo original ({original_size_mb:.2f} MB). Não é necessário converter.")
+
+        cut_video(input_file, output_file, start_time, end_time)
         return
-
-    # Definane o ponto de início para os últimos segundos do vídeo
-    start_time = duration - target_last
-
-    # Define a taxa de bits para atingir o tamanho alvo
-    bit_rate = target_size_bytes * 8 / target_last
-
-    # Configurações para o loop
-    attempts = 0
-
-    # Registrar início da conversão no log
-    create_log_file(log_file, f"Iniciando conversão de {input_file}")
-    while attempts < max_attempts:
-        create_log_file(log_file, f"Tentativa {attempts + 1}")
-        # Converte o vídeo
-        (
-            ffmpeg
-            .input(input_file, ss=start_time)
-            .output(output_file, **{
-                'c:v': 'libx264',
-                'b:v': f'{bit_rate:.0f}',
-                'c:a': 'aac',
-                'b:a': '128k',
-                'r': f'{fps}',
-                'vf': 'scale='f'{scale_X}:'f'{scale_Y},unsharp=5:5:1.0:5:5:0.0',
-                'profile:v': 'high',
-                'level:v': '4.0',
-                'pix_fmt': 'yuv420p'
-            })
-            .run(overwrite_output=True)
-        )
-
-        # Verifica o tamanho do arquivo de saída
-        output_size_bytes = get_video_size(output_file)
-        diff_percent = ((output_size_bytes - target_size_bytes) / target_size_bytes)
-        diff = diff_percent*100
-        if min_size_bytes <= output_size_bytes <= target_size_bytes or abs(diff) < 0.1:
-            create_log_file(log_file, f"diff_percent {diff_percent*100:.2f}%")
-            create_log_file(log_file, f"Sucesso! output_size_bytes {output_size_bytes}")
-            break
-        elif output_size_bytes > target_size_bytes:
-            bit_rate *= 1 - (diff_percent* 1.1)  # Reduz a taxa de bits
-            create_log_file(log_file, f"output_size_bytes {output_size_bytes} > target_size_bytes {target_size_bytes} = bit_rate - {diff:.2f}%")
-        else:
-            bit_rate *= 1 + (abs(diff_percent)* 1.1)  # Aumenta a taxa de bits
-            create_log_file(log_file, f"output_size_bytes {output_size_bytes} < min_size_bytes {min_size_bytes} = bit_rate + {diff:.2f}%")
-
-        attempts += 1
-
-    if attempts == max_attempts:
-        print(f"Limite de tentativas ({max_attempts}) atingido. Não foi possível alcançar o tamanho desejado.")
-        create_log_file(log_file, f"Limite de tentativas ({max_attempts}) atingido. Não foi possível alcançar o tamanho desejado.")
 
 def process_videos_in_folder(input_folder, output_folder, config_file):
     # Lê as configurações do arquivo
     config = read_config(config_file)
     target_size_mb = config.get('MB_ALVO', 7.925)
-    target_last = config.get('ULTIMOS_SEGUNDOS', 30)
+    cut_start = config.get('CORTAR_INICIO', 0)
+    cut_end = config.get('CORTAR_FIM', 0)
     max_attempts = config.get('MAX_TENTATIVAS', 10)
-    scale_X = config.get('X', 1920)
-    scale_Y = config.get('Y', 1080)
+    scale_X = config.get('X', 1280)
+    scale_Y = config.get('Y', 720)
     fps = config.get('FPS', 25)
-    create_log_file(log_file,f"Configuração carregada: {config}")
+    create_log_file(f"Configuração carregada: {config}")
 
     # Verifica se a pasta de entrada existe, se não, cria-a
     if not os.path.exists(input_folder):
         print(f"A pasta de entrada '{input_folder}' não existe. Criando pastas...")
-        create_log_file(log_file, f"A pasta de entrada '{input_folder}' não existe. Criando pastas...")
+        create_log_file(f"A pasta de entrada '{input_folder}' não existe. Criando pastas...")
         os.makedirs(input_folder)
 
         # Cria o arquivo de instruções
-        with open(('Instrucoes.txt'), 'w') as f:
-            f.write("Instruções de Uso:\n")
-            f.write("- Organize seus vídeos na pasta 'Input';\n")
-            f.write("- O script converterá e comprimirá os vídeos para a pasta 'Output';\n")
-            f.write("- Altere as configurações em Config.txt;\n")
-            f.write("- O arquivo pode ser convertido varias vezes até chegar ao tamanho desejado;\n")
-            f.write("- Certifique-se de que os arquivos de vídeo sejam no formato .mp4.\n")
+        create_instructions_file()
 
     # Verifica se a pasta de saída existe, se não, cria-a
     if not os.path.exists(output_folder):
@@ -145,12 +86,12 @@ def process_videos_in_folder(input_folder, output_folder, config_file):
                 output_file = os.path.join(output_folder, f"{os.path.splitext(file)[0]}_Convertido.mp4")
                 
                 # Chama a função para converter e comprimir o vídeo
-                compress_and_trim_video(input_file, output_file, target_size_mb, target_last, max_attempts, scale_X, scale_Y, fps)
+                preprocess_video_action(input_file, output_file, target_size_mb, cut_start, cut_end, max_attempts, scale_X, scale_Y, fps)
 
-input_folder = './Input'
-output_folder = './Output'
-config_file = 'Config.txt'
-log_file = os.path.join('log.txt')
+if __name__ == '__main__':
+    input_folder = './Input'
+    output_folder = './Output'
+    config_file = 'Config.txt'
 
-create_log_file(log_file, "Iniciando conversor...")
-process_videos_in_folder(input_folder, output_folder, config_file)
+    create_log_file("Iniciando conversor...")
+    process_videos_in_folder(input_folder, output_folder, config_file)
