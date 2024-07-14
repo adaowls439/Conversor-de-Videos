@@ -55,7 +55,7 @@ def process_videos_in_folder(input_folder, output_folder, config_file):
     # Lê as configurações do arquivo
     config = read_config(config_file)
     target_size_mb = config.get('MB_ALVO', 7.925)
-    cut_start = config.get('CORTAR_INICO', 0)
+    cut_start = config.get('CORTAR_INICIO', 0)
     cut_end = config.get('CORTAR_FIM', 0)
     max_attempts = config.get('MAX_TENTATIVAS', 10)
     scale_X = config.get('X', 1280)
