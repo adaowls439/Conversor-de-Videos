@@ -6,7 +6,7 @@ from src.utils import get_video_size
 from src.instrucoes import create_instructions_file
 from src.comprime_e_corta import compress_and_trim_video, cut_video
 
-def preprocess_video_action(input_file, output_file, target_size_mb, cut_start, cut_end, max_attempts, scale_X, scale_Y, fps, log_file, tolerance=0.99):
+def preprocess_video_action(input_file, output_file, target_size_mb, cut_start, cut_end, max_attempts, scale_X, scale_Y, fps, tolerance=0.99):
     # Obtem informações sobre o vídeo original
     original_size_bytes = os.path.getsize(input_file)
     original_size_mb = original_size_bytes / (1024 * 1024)
@@ -20,7 +20,7 @@ def preprocess_video_action(input_file, output_file, target_size_mb, cut_start, 
 
     # Usa o FPS original se o FPS desejado for maior que o original
     if fps > original_fps:
-        create_log_file(log_file, f"O FPS desejado ({fps}) é maior que o FPS original ({original_fps}). Usando FPS original.")
+        create_log_file(f"O FPS desejado ({fps}) é maior que o FPS original ({original_fps}). Usando FPS original.")
         fps = original_fps
 
     # Calcula o ponto de início e duração do vídeo após o corte
@@ -33,25 +33,25 @@ def preprocess_video_action(input_file, output_file, target_size_mb, cut_start, 
     if target_size_mb > 0 and target_size_mb <= original_size_mb:
         target_size_bytes = target_size_mb * 1024 * 1024
         min_size_bytes = (target_size_mb * tolerance) * 1024 * 1024
-        create_log_file(log_file, f"target_size_bytes: {target_size_bytes} | min_size_bytes: {min_size_bytes}")
+        create_log_file(f"target_size_bytes: {target_size_bytes} | min_size_bytes: {min_size_bytes}")
 
         # Verifica se a duração do vídeo após o corte é suficiente
         if cut_duration <= 3:
-            create_log_file(log_file, f"O vídeo após o corte tem duração não válida ({cut_duration:.2f} segundos). Cancelando conversão.")
+            create_log_file(f"O vídeo após o corte tem duração não válida ({cut_duration:.2f} segundos). Cancelando conversão.")
             print(f"O vídeo após o corte tem duração não válida ({cut_duration:.2f} segundos). Cancelando conversão.")
             return
 
         # Comprime e corta o video
-        compress_and_trim_video(target_size_bytes, cut_duration, input_file, max_attempts, start_time, end_time, output_file, fps, scale_X, scale_Y, min_size_bytes, log_file)
+        compress_and_trim_video(target_size_bytes, cut_duration, input_file, max_attempts, start_time, end_time, output_file, fps, scale_X, scale_Y, min_size_bytes)
 
     else:
-        create_log_file(log_file, f"Erro: O tamanho alvo ({target_size_mb} MB) é maior que o tamanho do arquivo original ({original_size_mb:.2f} MB). Não é necessário converter.")
+        create_log_file(f"Erro: O tamanho alvo ({target_size_mb} MB) é maior que o tamanho do arquivo original ({original_size_mb:.2f} MB). Não é necessário converter.")
         print(f"Erro: O tamanho alvo ({target_size_mb} MB) é maior que o tamanho do arquivo original ({original_size_mb:.2f} MB). Não é necessário converter.")
 
-        cut_video(input_file, output_file, start_time, end_time, log_file)
+        cut_video(input_file, output_file, start_time, end_time)
         return
 
-def process_videos_in_folder(input_folder, output_folder, config_file, log_file):
+def process_videos_in_folder(input_folder, output_folder, config_file):
     # Lê as configurações do arquivo
     config = read_config(config_file)
     target_size_mb = config.get('MB_ALVO', 7.925)
@@ -61,12 +61,12 @@ def process_videos_in_folder(input_folder, output_folder, config_file, log_file)
     scale_X = config.get('X', 1280)
     scale_Y = config.get('Y', 720)
     fps = config.get('FPS', 25)
-    create_log_file(log_file, f"Configuração carregada: {config}")
+    create_log_file(f"Configuração carregada: {config}")
 
     # Verifica se a pasta de entrada existe, se não, cria-a
     if not os.path.exists(input_folder):
         print(f"A pasta de entrada '{input_folder}' não existe. Criando pastas...")
-        create_log_file(log_file, f"A pasta de entrada '{input_folder}' não existe. Criando pastas...")
+        create_log_file(f"A pasta de entrada '{input_folder}' não existe. Criando pastas...")
         os.makedirs(input_folder)
 
         # Cria o arquivo de instruções
@@ -86,13 +86,12 @@ def process_videos_in_folder(input_folder, output_folder, config_file, log_file)
                 output_file = os.path.join(output_folder, f"{os.path.splitext(file)[0]}_Convertido.mp4")
                 
                 # Chama a função para converter e comprimir o vídeo
-                preprocess_video_action(input_file, output_file, target_size_mb, cut_start, cut_end,max_attempts, scale_X, scale_Y, fps, log_file)
+                preprocess_video_action(input_file, output_file, target_size_mb, cut_start, cut_end, max_attempts, scale_X, scale_Y, fps)
 
 if __name__ == '__main__':
     input_folder = './Input'
     output_folder = './Output'
     config_file = 'Config.txt'
-    log_file = 'log.txt'
 
-    create_log_file(log_file, "Iniciando conversor...")
-    process_videos_in_folder(input_folder, output_folder, config_file, log_file)
+    create_log_file("Iniciando conversor...")
+    process_videos_in_folder(input_folder, output_folder, config_file)
