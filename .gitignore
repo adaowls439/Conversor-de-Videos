@@ -10,3 +10,4 @@ myenv
 /Output/*
 tests.py
 log.txt
+/src/__pycache__
